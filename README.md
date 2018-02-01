@@ -27,4 +27,5 @@ python train.py
 
 ### Notes
 - This implementation uses Pyro's blackbox SVI function with the default ELBO loss. This is slower than the TensorFlow implementation which uses a custom loss function with an analytic solution to the KL divergence term. 
-- Currently the code is not set up to use a GPU but the code should be easy to extend
+- Currently the code is not set up to use a GPU, but the code should be easy to extend to improve running speed
+- 

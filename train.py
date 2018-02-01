@@ -18,7 +18,7 @@ from preprocessing import mask_test_edges, preprocess_graph
 
 def main(args):
     """ Train GAE """ 
-    
+    print("Using {} dataset".format(args.dataset_str))
     # Load data
     np.random.seed(1)
     adj, features = load_data(args.dataset_str)
@@ -100,18 +100,19 @@ def main(args):
     print('Test AP score: ' + str(ap_score))
     
     # Plot
-    plot_results(results, args.test_freq)
+    plot_results(results, args.test_freq, path= args.dataset_str + "_results.png")
 
 if __name__ == '__main__':
 
     args = dotdict()
     args.seed        = 2
     args.dropout     = 0.5
-    args.num_epochs  = 400
+    args.num_epochs  = 200
     args.dataset_str = 'cora'
+    # args.dataset_str = 'citeseer'
     args.test_freq   = 10
     args.lr          = 0.01
-    args.subsampling = True
+    args.subsampling = False
 
     pyro.clear_param_store()
     np.random.seed(args.seed)

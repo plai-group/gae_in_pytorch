@@ -94,7 +94,6 @@ class GAE(object):
         # Subsampling 
         if self.subsampling:    
             with pyro.iarange("data", self.n_subsample, subsample=self.sample()) as ind:
-                print len(ind)
                 pyro.observe('obs', dist.bernoulli, self.adj_labels.view(1, -1)[0][ind], z_adj.view(1, -1)[0][ind])
         # Reweighting
         else:
