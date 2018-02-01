@@ -53,7 +53,8 @@ class GraphConvolution(Module):
             self.bias.data.uniform_(-init_range, init_range)
 
     def forward(self, x, adj):
-        support = torch.mm(x, self.weight)
+        support = SparseMM()(x, self.weight)
+        # support = torch.mm(x, self.weight)
         output = SparseMM()(adj, support)
         if self.bias is not None:
             return output + self.bias

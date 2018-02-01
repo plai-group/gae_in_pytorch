@@ -32,8 +32,10 @@ def main(args):
     adj_train_norm   = preprocess_graph(adj_train)
     adj_train_norm   = Variable(make_sparse(adj_train_norm))
     adj_train_labels = Variable(torch.FloatTensor(adj_train + sp.eye(adj_train.shape[0]).todense()))
-    features         = Variable(torch.FloatTensor(np.array(features.todense())))
+    features         = Variable(make_sparse(features))
 
+    n_edges = adj_train_labels.sum()
+    
     data = {
         'adj_norm'  : adj_train_norm,
         'adj_labels': adj_train_labels,
@@ -43,7 +45,8 @@ def main(args):
     gae = GAE(data,
               n_hidden=32,
               n_latent=16,
-              dropout=args.dropout)
+              dropout=args.dropout,
+              subsampling=args.subsampling)
 
     optimizer = Adam({"lr": args.lr, "betas": (0.95, 0.999)})
 
@@ -59,7 +62,10 @@ def main(args):
         # do ELBO gradient and accumulate loss
         epoch_loss += svi.step()
         # report training diagnostics
-        normalized_loss = epoch_loss / (2 * N * N)
+        if args.subsampling:
+            normalized_loss = epoch_loss / float(2 * n_edges)
+        else:
+            normalized_loss = epoch_loss / (2 * N * N)
         
         results['train_elbo'].append(normalized_loss)
 
@@ -105,6 +111,7 @@ if __name__ == '__main__':
     args.dataset_str = 'cora'
     args.test_freq   = 10
     args.lr          = 0.01
+    args.subsampling = True
 
     pyro.clear_param_store()
     np.random.seed(args.seed)

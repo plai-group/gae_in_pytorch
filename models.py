@@ -29,7 +29,6 @@ class GCNEncoder(nn.Module):
         return mu, torch.exp(log_sig)
 
 
-
 class InnerProductDecoder(nn.Module):
     """Decoder for using inner product for prediction."""
 
@@ -85,8 +84,8 @@ class GAE(object):
         # register PyTorch module `decoder` with Pyro
         pyro.module("decoder", self.decoder)
         # Setup hyperparameters for prior p(z)
-        z_mu = ng_zeros([self.x.size(0), self.n_latent], type_as=self.x.data)
-        z_sigma = ng_ones([self.x.size(0), self.n_latent], type_as=self.x.data)
+        z_mu = ng_zeros([self.n_samples, self.n_latent])
+        z_sigma = ng_ones([self.n_samples, self.n_latent])
         # sample from prior
         z = pyro.sample("latent", dist.normal, z_mu, z_sigma)
         # decode the latent code z
@@ -95,6 +94,7 @@ class GAE(object):
         # Subsampling 
         if self.subsampling:    
             with pyro.iarange("data", self.n_subsample, subsample=self.sample()) as ind:
+                print len(ind)
                 pyro.observe('obs', dist.bernoulli, self.adj_labels.view(1, -1)[0][ind], z_adj.view(1, -1)[0][ind])
         # Reweighting
         else:
