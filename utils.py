@@ -4,10 +4,13 @@ import scipy.sparse as sp
 import torch
 import networkx as nx
 from sklearn.metrics import roc_auc_score, average_precision_score, accuracy_score
+import matplotlib.pyplot as plt
+
+
 # ------------------------------------
 # Some functions borrowed from:
-# https://github.com/tkipf/pygcn and
-# https://github.com/tkipf/gcn
+# https://github.com/tkipf/pygcn and 
+# https://github.com/tkipf/gae
 # ------------------------------------
 
 
@@ -48,6 +51,7 @@ def eval_gae(edges_pos, edges_neg, emb, adj_orig):
     ap_score = average_precision_score(labels_all, preds_all)
 
     return accuracy, roc_score, ap_score
+
 
 def make_sparse(sparse_mx):
     """Convert a scipy sparse matrix to a torch sparse tensor."""
@@ -106,3 +110,48 @@ def get_subsampler(variable):
         return np.append(edges, nonedges[idx])
 
     return sampler
+
+
+def plot_results(results, test_freq, path='results.png'):
+    # Init
+    plt.close('all')
+    fig = plt.figure(figsize=(8, 8))
+
+    x_axis_train = range(len(results['train_elbo']))
+    x_axis_test = range(0, len(x_axis_train), test_freq)
+    # Elbo
+    ax = fig.add_subplot(2, 2, 1)
+    ax.plot(x_axis_train, results['train_elbo'])
+    ax.set_ylabel('Loss (ELBO)')
+    ax.set_title('Loss (ELBO)')
+    ax.legend(['Train'], loc='upper right')
+
+    # Accuracy
+    ax = fig.add_subplot(2, 2, 2)
+    ax.plot(x_axis_train, results['accuracy_train'])
+    ax.plot(x_axis_test, results['accuracy_test'])
+    ax.set_ylabel('Accuracy')
+    ax.set_title('Accuracy')
+    ax.legend(['Train', 'Test'], loc='lower right')
+
+    # ROC
+    ax = fig.add_subplot(2, 2, 3)
+    ax.plot(x_axis_train, results['roc_train'])
+    ax.plot(x_axis_test, results['roc_test'])
+    ax.set_xlabel('Epoch')
+    ax.set_ylabel('ROC AUC')
+    ax.set_title('ROC AUC')
+    ax.legend(['Train', 'Test'], loc='lower right')
+
+    # Precision
+    ax = fig.add_subplot(2, 2, 4)
+    ax.plot(x_axis_train, results['ap_train'])
+    ax.plot(x_axis_test, results['ap_test'])
+    ax.set_xlabel('Epoch')
+    ax.set_ylabel('Precision')
+    ax.set_title('Precision')
+    ax.legend(['Train', 'Test'], loc='lower right')
+
+    # Save
+    fig.tight_layout()
+    fig.savefig(path)

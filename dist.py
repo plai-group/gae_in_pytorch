@@ -3,9 +3,11 @@ from pyro.distributions.random_primitive import RandomPrimitive
 import torch
 from torch.nn import CrossEntropyLoss
 
+
 class WeightedBernoulli(Bernoulli):
     """Bernoulli distribution with a weighted cross entropy. Used for imbalanced data when you 
     want to increase the penalizization of the positive class. """
+
     def __init__(self, *args, **kwargs):
         self.weight = kwargs.pop('weight', 1.0)
         super(WeightedBernoulli, self).__init__(*args, **kwargs)
@@ -21,7 +23,9 @@ class WeightedBernoulli(Bernoulli):
         # Cf. derivation at:
         # https://www.tensorflow.org/api_docs/python/tf/nn/weighted_cross_entropy_with_logits
         weight = (1 + (self.weight - 1) * x)
-        binary_cross_entropy = self.logits*(1 - x) + max_val + weight*((-max_val).exp() + (-self.logits - max_val).exp()).log()
+        binary_cross_entropy = self.logits * \
+            (1 - x) + max_val + weight * \
+            ((-max_val).exp() + (-self.logits - max_val).exp()).log()
         # ----------
         log_prob = -binary_cross_entropy
         # XXX this allows for the user to mask out certain parts of the score, for example

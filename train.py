@@ -1,5 +1,6 @@
 from __future__ import division
 from __future__ import print_function
+from collections import defaultdict
 
 import numpy as np
 import scipy.sparse as sp
@@ -11,10 +12,9 @@ import pyro
 from pyro.infer import SVI
 from pyro.optim import Adam
 
-from utils import load_data, dotdict, eval_gae, make_sparse
+from utils import load_data, dotdict, eval_gae, make_sparse, plot_results
 from models import GAE
 from preprocessing import mask_test_edges, preprocess_graph
-
 
 def main(args):
     """ Train GAE """ 
@@ -48,14 +48,10 @@ def main(args):
     optimizer = Adam({"lr": args.lr, "betas": (0.95, 0.999)})
 
     svi = SVI(gae.model, gae.guide, optimizer, loss="ELBO")
-    train_elbo    = []
     
-    # test_elbo     = []
-    # cost_val      = []
-    # acc_val       = []
-
-    val_roc_score = []
-
+    # Results
+    results = defaultdict(list)
+    
     # Full batch training loop
     for epoch in range(args.num_epochs):
         # initialize loss accumulator
@@ -64,16 +60,29 @@ def main(args):
         epoch_loss += svi.step()
         # report training diagnostics
         normalized_loss = epoch_loss / (2 * N * N)
-        train_elbo.append(normalized_loss)
+        
+        results['train_elbo'].append(normalized_loss)
 
         # Training loss
         emb = gae.get_embeddings()
-        accuracy, roc_curr, ap_curr = eval_gae(val_edges, val_edges_false, emb, adj_orig)
-        val_roc_score.append(roc_curr)
-
+        accuracy, roc_curr, ap_curr, = eval_gae(val_edges, val_edges_false, emb, adj_orig)
+        
+        results['accuracy_train'].append(accuracy)
+        results['roc_train'].append(roc_curr)
+        results['ap_train'].append(ap_curr)
+        
         print("Epoch:", '%04d' % (epoch + 1),
               "train_loss=", "{:.5f}".format(normalized_loss),
               "train_acc=", "{:.5f}".format(accuracy), "val_roc=", "{:.5f}".format(roc_curr), "val_ap=", "{:.5f}".format(ap_curr))
+
+        # Test loss
+        if epoch % args.test_freq == 0:
+            emb = gae.get_embeddings()
+            accuracy, roc_score, ap_score = eval_gae(test_edges, test_edges_false, emb, adj_orig)
+            results['accuracy_test'].append(accuracy)
+            results['roc_test'].append(roc_curr)
+            results['ap_test'].append(ap_curr)
+    
 
     print("Optimization Finished!")
 
@@ -83,16 +92,19 @@ def main(args):
     print('Test Accuracy: ' + str(accuracy))
     print('Test ROC score: ' + str(roc_score))
     print('Test AP score: ' + str(ap_score))
-
+    
+    # Plot
+    plot_results(results, args.test_freq)
 
 if __name__ == '__main__':
 
     args = dotdict()
-    args.seed = 2
-    args.dropout = 0.5
-    args.num_epochs = 400
+    args.seed        = 2
+    args.dropout     = 0.5
+    args.num_epochs  = 400
     args.dataset_str = 'cora'
-    args.lr = 0.01
+    args.test_freq   = 10
+    args.lr          = 0.01
 
     pyro.clear_param_store()
     np.random.seed(args.seed)
