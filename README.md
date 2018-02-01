@@ -20,6 +20,7 @@ This repository uses some of the code found here: https://github.com/tkipf/pygcn
 
 
 ### To run
+After installing all requirements:
 ```bash
 python train.py
 ```
