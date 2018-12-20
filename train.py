@@ -106,8 +106,8 @@ if __name__ == '__main__':
     args.seed        = 2
     args.dropout     = 0.0
     args.num_epochs  = 50
-    args.dataset_str = 'cora'
-    # args.dataset_str = 'citeseer'
+    # args.dataset_str = 'cora'
+    args.dataset_str = 'citeseer'
     args.test_freq   = 10
     args.lr          = 0.01
 
