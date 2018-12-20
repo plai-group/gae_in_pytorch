@@ -3,11 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pyro
 import pyro.distributions as dist
-from pyro.util import ng_zeros, ng_ones
 
 from layers import GraphConvolution
 from utils import get_subsampler
-from dist import weighted_bernoulli
+from dist import WeightedBernoulli
+pyro.enable_validation(True)
 
 class GCNEncoder(nn.Module):
     """Encoder using GCN layers"""
@@ -43,19 +43,20 @@ class InnerProductDecoder(nn.Module):
         z = F.dropout(z, self.dropout, training=self.training)
         adj = (self.sigmoid(torch.mm(z, z.t())) + self.fudge) * (1 - 2 * self.fudge)
         return adj
-    
 
-class GAE(object):
-    """Graph Auto Encoder (see: https://arxqiv.org/abs/1611.07308)"""
+
+class GAE(nn.Module):
+    """Graph Auto Encoder (see: https://arxiv.org/abs/1611.07308)"""
 
     def __init__(self, data, n_hidden, n_latent, dropout, subsampling=False):
         super(GAE, self).__init__()
-        
+
         # Data
         self.x = data['features']
         self.adj_norm = data['adj_norm']
         self.adj_labels = data['adj_labels']
-    
+        self.obs = self.adj_labels.view(1, -1)
+
         # Dimensions
         N, D = data['features'].shape
         self.n_samples = N
@@ -70,47 +71,43 @@ class GAE(object):
         self.norm = float(N * N) / ((N * N - self.n_edges) * 2)
         self.subsampling = subsampling
 
-        # Layers 
+        # Layers
         self.dropout = dropout
         self.encoder = GCNEncoder(self.input_dim, self.n_hidden, self.n_latent, self.dropout)
         self.decoder = InnerProductDecoder(self.dropout)
 
-        if self.subsampling:
-            print "Using subsampling instead of reweighting"
-            self.sample = get_subsampler(self.adj_labels)
-        
-        
+
     def model(self):
         # register PyTorch module `decoder` with Pyro
         pyro.module("decoder", self.decoder)
+
         # Setup hyperparameters for prior p(z)
-        z_mu = ng_zeros([self.n_samples, self.n_latent])
-        z_sigma = ng_ones([self.n_samples, self.n_latent])
+        z_mu    = torch.zeros([self.n_samples, self.n_latent])
+        z_sigma = torch.ones([self.n_samples, self.n_latent])
+
         # sample from prior
-        z = pyro.sample("latent", dist.normal, z_mu, z_sigma)
+        z = pyro.sample("latent", dist.Normal(z_mu, z_sigma).to_event(2))
+
         # decode the latent code z
-        z_adj = self.decoder(z)
-        
-        # Subsampling 
-        if self.subsampling:    
-            with pyro.iarange("data", self.n_subsample, subsample=self.sample()) as ind:
-                pyro.observe('obs', dist.bernoulli, self.adj_labels.view(1, -1)[0][ind], z_adj.view(1, -1)[0][ind])
-        # Reweighting
-        else:
-            with pyro.iarange("data"):
-                pyro.observe('obs', weighted_bernoulli, self.adj_labels.view(1, -1), z_adj.view(1, -1), weight=self.pos_weight)
+        z_adj = self.decoder(z).view(1, -1)
+
+        # Score against data
+        pyro.sample('obs', WeightedBernoulli(z_adj, weight=self.pos_weight).to_event(2), obs=self.obs)
+
 
     def guide(self):
         # register PyTorch model 'encoder' w/ pyro
         pyro.module("encoder", self.encoder)
+
         # Use the encoder to get the parameters use to define q(z|x)
         z_mu, z_sigma = self.encoder(self.x, self.adj_norm)
+
         # Sample the latent code z
-        pyro.sample("latent", dist.normal, z_mu, z_sigma)
+        pyro.sample("latent", dist.Normal(z_mu, z_sigma).to_event(2))
 
 
     def get_embeddings(self):
         z_mu, _ = self.encoder.eval()(self.x, self.adj_norm)
-        # Put encoder back into training mode 
+        # Put encoder back into training mode
         self.encoder.train()
         return z_mu
