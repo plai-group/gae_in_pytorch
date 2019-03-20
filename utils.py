@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # ------------------------------------
 # Some functions borrowed from:
-# https://github.com/tkipf/pygcn and 
+# https://github.com/tkipf/pygcn and
 # https://github.com/tkipf/gae
 # ------------------------------------
 
@@ -96,20 +96,6 @@ def load_data(dataset):
     adj = nx.adjacency_matrix(nx.from_dict_of_lists(graph))
 
     return adj, features
-
-
-# Subsample sparse variables
-def get_subsampler(variable):
-    data = variable.view(1, -1).data.numpy()
-    edges = np.where(data == 1)[1]
-    nonedges = np.where(data == 0)[1]
-
-    def sampler():
-        idx = np.random.choice(
-            nonedges.shape[0], edges.shape[0], replace=False)
-        return np.append(edges, nonedges[idx])
-
-    return sampler
 
 
 def plot_results(results, test_freq, path='results.png'):

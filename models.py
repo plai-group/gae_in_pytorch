@@ -5,7 +5,6 @@ import pyro
 import pyro.distributions as dist
 
 from layers import GraphConvolution
-from utils import get_subsampler
 from dist import WeightedBernoulli
 pyro.enable_validation(True)
 
